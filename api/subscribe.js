@@ -1,39 +1,43 @@
 // api/subscribe.js
 export default async function handler(req, res) {
-  // 1. Hanya izinkan method POST
-  if (req.method !== 'POST') {
-    return res.status(405).json({ 
-      error: 'Method Not Allowed. Please use POST.' 
-    });
+  // Set CORS headers
+  res.setHeader('Access-Control-Allow-Credentials', true);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+  );
+
+  // Handle preflight OPTIONS request
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
   }
 
-  // 2. Ambil email dari request body
+  // Hanya izinkan POST
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method Not Allowed' });
+  }
+
   let email;
   try {
     email = req.body.email;
   } catch (error) {
-    return res.status(400).json({ 
-      error: 'Invalid request body' 
-    });
+    return res.status(400).json({ error: 'Invalid request body' });
   }
 
-  // 3. Validasi email
+  // Validasi email
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!email || !emailRegex.test(email)) {
-    return res.status(400).json({ 
-      error: 'Invalid email address' 
-    });
+    return res.status(400).json({ error: 'Invalid email address' });
   }
 
-  // 4. Cek apakah API key sudah di-set
+  // Cek API key
   if (!process.env.BREVO_API_KEY) {
-    console.error('BREVO_API_KEY is not configured');
-    return res.status(500).json({ 
-      error: 'Server configuration error' 
-    });
+    console.error('BREVO_API_KEY not configured');
+    return res.status(500).json({ error: 'Server configuration error' });
   }
 
-  // 5. Kirim ke Brevo API
   try {
     const response = await fetch('https://api.brevo.com/v3/contacts', {
       method: 'POST',
@@ -44,7 +48,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         email: email,
-        listIds: [7], // Ganti dengan ID list Anda di Brevo
+        listIds: [7],
         updateEnabled: true,
         attributes: {
           SOURCE: 'website_popup'
@@ -54,7 +58,6 @@ export default async function handler(req, res) {
 
     const data = await response.json();
 
-    // 6. Handle response dari Brevo
     if (response.status === 201 || response.status === 204) {
       return res.status(200).json({ 
         success: true, 
