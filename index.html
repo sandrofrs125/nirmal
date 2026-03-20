@@ -956,62 +956,56 @@
   const popupFormDiv = document.getElementById('popupForm');
   const popupSuccessDiv = document.getElementById('popupSuccess');
 
-  brevoForm.addEventListener('submit', async function(e) {
-    e.preventDefault();
+  // Handle form submission (cari bagian ini di index.html)
+brevoForm.addEventListener('submit', async function(e) {
+  e.preventDefault();
+  
+  const email = popupEmail.value.trim();
+  
+  if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    popupEmail.focus();
+    alert('Masukkan alamat email yang valid');
+    return;
+  }
+  
+  popupSubmit.disabled = true;
+  popupSubmit.textContent = 'Mengirim...';
+  
+  try {
+    // Pastikan URL ini benar
+    const response = await fetch('/api/subscribe', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email: email }),
+    });
     
-    const email = popupEmail.value.trim();
+    const data = await response.json();
     
-    // Validasi email
-    if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      popupEmail.focus();
-      alert('Masukkan alamat email yang valid');
-      return;
-    }
-    
-    // Disable button dan ubah teks
-    popupSubmit.disabled = true;
-    popupSubmit.textContent = 'Mengirim...';
-    
-    try {
-      // Kirim ke API endpoint Vercel
-      const response = await fetch('/api/subscribe', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email: email }),
-      });
+    if (response.ok && data.success) {
+      localStorage.setItem('nirmala_popup_done', Date.now().toString());
+      popupFormDiv.style.display = 'none';
+      popupSuccessDiv.style.display = 'block';
       
-      const data = await response.json();
-      
-      if (response.ok && data.success) {
-        // Simpan bahwa user sudah subscribe
-        localStorage.setItem(POPUP_SUBMITTED_KEY, Date.now().toString());
-        
-        // Tampilkan success message
-        popupFormDiv.style.display = 'none';
-        popupSuccessDiv.style.display = 'block';
-        
-        // Tutup popup setelah 3 detik
+      setTimeout(() => {
+        closePopup();
         setTimeout(() => {
-          closePopup();
-          // Reset form untuk kunjungan berikutnya
-          setTimeout(() => {
-            popupFormDiv.style.display = 'block';
-            popupSuccessDiv.style.display = 'none';
-            popupEmail.value = '';
-          }, 500);
-        }, 3000);
-      } else {
-        throw new Error(data.error || 'Gagal subscribe');
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      alert('Maaf, terjadi kesalahan. Silakan coba lagi nanti.');
-      popupSubmit.disabled = false;
-      popupSubmit.textContent = 'Gabung';
+          popupFormDiv.style.display = 'block';
+          popupSuccessDiv.style.display = 'none';
+          popupEmail.value = '';
+        }, 500);
+      }, 3000);
+    } else {
+      throw new Error(data.error || 'Gagal subscribe');
     }
-  });
+  } catch (error) {
+    console.error('Error:', error);
+    alert('Maaf, terjadi kesalahan. Silakan coba lagi nanti.');
+    popupSubmit.disabled = false;
+    popupSubmit.textContent = 'Gabung';
+  }
+});
 </script>
 
   function submitPopup() {}
