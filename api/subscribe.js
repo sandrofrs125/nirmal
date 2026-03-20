@@ -48,7 +48,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         email: email,
-        listIds: [7],
+        listIds: [2],
         updateEnabled: true,
         attributes: {
           SOURCE: 'website_popup'
