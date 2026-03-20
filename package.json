@@ -1,1 +1,11 @@
-
+{
+  "name": "nirmala-coffee",
+  "version": "1.0.0",
+  "description": "Nirmala Coffee website with Brevo subscription",
+  "main": "index.html",
+  "scripts": {
+    "dev": "vercel dev"
+  },
+  "author": "Nirmala Coffee",
+  "license": "MIT"
+}
