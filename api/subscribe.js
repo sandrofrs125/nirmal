@@ -1,54 +1,75 @@
-exports.handler = async function(event) {
-  // Only allow POST
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: 'Method Not Allowed' };
+// api/subscribe.js
+export default async function handler(req, res) {
+  // 1. Hanya izinkan method POST
+  if (req.method !== 'POST') {
+    return res.status(405).json({ 
+      error: 'Method Not Allowed. Please use POST.' 
+    });
   }
 
+  // 2. Ambil email dari request body
   let email;
   try {
-    const body = JSON.parse(event.body);
-    email = body.email;
-  } catch {
-    return { statusCode: 400, body: JSON.stringify({ error: 'Invalid request' }) };
+    email = req.body.email;
+  } catch (error) {
+    return res.status(400).json({ 
+      error: 'Invalid request body' 
+    });
   }
 
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return { statusCode: 400, body: JSON.stringify({ error: 'Invalid email' }) };
+  // 3. Validasi email
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!email || !emailRegex.test(email)) {
+    return res.status(400).json({ 
+      error: 'Invalid email address' 
+    });
   }
 
+  // 4. Cek apakah API key sudah di-set
+  if (!process.env.BREVO_API_KEY) {
+    console.error('BREVO_API_KEY is not configured');
+    return res.status(500).json({ 
+      error: 'Server configuration error' 
+    });
+  }
+
+  // 5. Kirim ke Brevo API
   try {
-    const res = await fetch('https://api.brevo.com/v3/contacts', {
+    const response = await fetch('https://api.brevo.com/v3/contacts', {
       method: 'POST',
       headers: {
-        'accept':       'application/json',
+        'accept': 'application/json',
         'content-type': 'application/json',
-        'api-key':      process.env.BREVO_API_KEY, // stored in Netlify env vars
+        'api-key': process.env.BREVO_API_KEY,
       },
       body: JSON.stringify({
-        email:         email,
-        listIds:       [7],          // List #7 — subscriber web
+        email: email,
+        listIds: [7], // Ganti dengan ID list Anda di Brevo
         updateEnabled: true,
+        attributes: {
+          SOURCE: 'website_popup'
+        }
       }),
     });
 
-    // 201 = new contact, 204 = existing contact updated
-    if (res.status === 201 || res.status === 204) {
-      return {
-        statusCode: 200,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ success: true }),
-      };
+    const data = await response.json();
+
+    // 6. Handle response dari Brevo
+    if (response.status === 201 || response.status === 204) {
+      return res.status(200).json({ 
+        success: true, 
+        message: 'Successfully subscribed!' 
+      });
     } else {
-      const err = await res.json();
-      return {
-        statusCode: res.status,
-        body: JSON.stringify({ error: err.message || 'Brevo error' }),
-      };
+      console.error('Brevo error:', data);
+      return res.status(response.status).json({ 
+        error: data.message || 'Failed to subscribe' 
+      });
     }
-  } catch (err) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'Server error' }),
-    };
+  } catch (error) {
+    console.error('Network error:', error);
+    return res.status(500).json({ 
+      error: 'Network error. Please try again later.' 
+    });
   }
-};
+}
