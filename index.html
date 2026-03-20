@@ -921,62 +921,98 @@
   }
 
   /* ══════════════════════════════════
-     POP-UP + BREVO INTEGRATION
+     POP-UP + BREVO INTEGRATION FOR VERCEL
   ══════════════════════════════════ */
   const popup      = document.getElementById('popup');
   const popupClose = document.getElementById('popupClose');
 
-  function openPopup()  { popup.classList.add('show'); document.body.style.overflow='hidden'; }
-  function closePopup() { popup.classList.remove('show'); document.body.style.overflow=''; }
+  function openPopup()  { 
+    popup.classList.add('show'); 
+    document.body.style.overflow='hidden'; 
+  }
+  
+  function closePopup() { 
+    popup.classList.remove('show'); 
+    document.body.style.overflow=''; 
+  }
 
   popupClose.addEventListener('click', closePopup);
   popup.addEventListener('click', e => { if(e.target===popup) closePopup(); });
 
   // Show after 3 seconds on every visit
-  // Only suppressed for 7 days AFTER user submits their email
   const POPUP_SUBMITTED_KEY = 'nirmala_popup_done';
   const submittedAt = localStorage.getItem(POPUP_SUBMITTED_KEY);
   const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
   const alreadySubmitted = submittedAt && (Date.now() - parseInt(submittedAt)) < sevenDaysMs;
+  
   if(!alreadySubmitted) {
     setTimeout(openPopup, 3000);
   }
 
-  document.getElementById('brevoForm').addEventListener('submit', async function(e) {
+  // Handle form submission
+  const brevoForm = document.getElementById('brevoForm');
+  const popupEmail = document.getElementById('popupEmail');
+  const popupSubmit = document.getElementById('popupSubmit');
+  const popupFormDiv = document.getElementById('popupForm');
+  const popupSuccessDiv = document.getElementById('popupSuccess');
+
+  brevoForm.addEventListener('submit', async function(e) {
     e.preventDefault();
-    const emailVal = document.getElementById('popupEmail').value.trim();
-    if(!emailVal || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) {
-      document.getElementById('popupEmail').focus();
+    
+    const email = popupEmail.value.trim();
+    
+    // Validasi email
+    if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      popupEmail.focus();
+      alert('Masukkan alamat email yang valid');
       return;
     }
-    const btn = document.getElementById('popupSubmit');
-    btn.disabled = true;
-    btn.textContent = '...';
-
+    
+    // Disable button dan ubah teks
+    popupSubmit.disabled = true;
+    popupSubmit.textContent = 'Mengirim...';
+    
     try {
-      const res = await fetch('/.netlify/functions/subscribe', {
+      // Kirim ke API endpoint Vercel
+      const response = await fetch('/api/subscribe', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: emailVal }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: email }),
       });
-      if(res.ok) {
-        onPopupSuccess();
+      
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        // Simpan bahwa user sudah subscribe
+        localStorage.setItem(POPUP_SUBMITTED_KEY, Date.now().toString());
+        
+        // Tampilkan success message
+        popupFormDiv.style.display = 'none';
+        popupSuccessDiv.style.display = 'block';
+        
+        // Tutup popup setelah 3 detik
+        setTimeout(() => {
+          closePopup();
+          // Reset form untuk kunjungan berikutnya
+          setTimeout(() => {
+            popupFormDiv.style.display = 'block';
+            popupSuccessDiv.style.display = 'none';
+            popupEmail.value = '';
+          }, 500);
+        }, 3000);
       } else {
-        throw new Error('Server error');
+        throw new Error(data.error || 'Gagal subscribe');
       }
-    } catch(err) {
-      btn.disabled = false;
-      btn.textContent = 'Gabung';
-      alert('Terjadi kesalahan. Coba lagi.');
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Maaf, terjadi kesalahan. Silakan coba lagi nanti.');
+      popupSubmit.disabled = false;
+      popupSubmit.textContent = 'Gabung';
     }
   });
-
-  function onPopupSuccess() {
-    localStorage.setItem('nirmala_popup_done', Date.now().toString());
-    document.getElementById('popupForm').style.display = 'none';
-    document.getElementById('popupSuccess').style.display = 'block';
-    setTimeout(closePopup, 3000);
-  }
+</script>
 
   function submitPopup() {}
 </script>
